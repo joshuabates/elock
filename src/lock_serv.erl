@@ -3,7 +3,7 @@
 -behaviour (gen_server).
 
 -export([start_link/0, terminate/2, handle_info/2, code_change/3]).
--export([lock/1, lock/2, unlock/1, unlock_all/0, get_locker_id/0, stats/0]).
+-export([lock/1, lock/2, unlock/1, unlock_all/0, get_locker_id/0, stats/0, locks/0]).
 -export([set_timeout/1, set_locker_id/1]).
 -export([init/1, handle_call/3, handle_cast/2]).
 
@@ -69,6 +69,9 @@ set_locker_id(Id) ->
 stats() ->
     gen_server:call(?MODULE, stats).
 
+locks() ->
+    gen_server:call(?MODULE, locks).
+    
 lock(Key) ->
     gen_server:call(?MODULE, {lock, Key}).
 
@@ -119,10 +122,13 @@ handle_call({set_timeout, Millis}, From, Locks) ->
     {ok, Id, Locks2} = allocate_or_find_locker_id(From, Locks),
     {reply, ok, Locks2#lock_state{
         locker_delay=dict:store(Id, Millis, Locks2#lock_state.locker_delay)}};
+handle_call(locks, From, Locks) ->
+    {ok, Response} = locks(From, Locks),
+    {reply, Response, Locks};
 handle_call(stats, From, Locks) ->
     {ok, Response} = stats(From, Locks),
     {reply, Response, Locks}.
-
+ 
 handle_cast(reset, _Locks) ->
     error_logger:info_msg("Someone casted a reset", []),
    {noreply, #lock_state{}};
@@ -230,6 +236,10 @@ stats({_From, _Something}, Locks) ->
     Csize = dict:size(Locks#lock_state.lockers_rev),
     {ok, Rv}.
 
+locks({_From, _Something}, Locks) ->
+  % LockKeys = dict:fetch_keys(Locks#lock_state.locks),
+  {ok, Locks#lock_state.locks}.
+	
 % Private support stuff
 
 get_client_list(From, D) ->

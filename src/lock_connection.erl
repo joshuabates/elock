@@ -37,6 +37,14 @@ format_stats(Stats) ->
 		"END"],
 	string:join(Lines, [13,10]).
 
+format_locks(Locks) ->
+  LockLines = lists:map(fun({K,V})->lists:flatten(io_lib:format("LOCK ~s ~s", [K,V])) end, dict:to_list(Locks)),
+	Lines = [
+		"LOCKS",
+    string:join(LockLines, [13,10]),
+		"END"],
+	string:join(Lines, [13,10]).
+	
 % Commands go here.
 process_command(Socket, "lock", [Key]) ->
     lock_response(Socket, Key, lock_serv:lock(Key));
@@ -59,6 +67,10 @@ process_command(Socket, "echo", Args) ->
 process_command(Socket, "stats", []) ->
     Stats = lock_serv:stats(),
     send_response(Socket, 200, format_stats(Stats));
+process_command(Socket, "locks", []) ->
+    Locks = lock_serv:locks(),
+    error_logger:info_msg("Getting locks ~p", [Locks]),
+    send_response(Socket, 200, format_locks(Locks));
 process_command(Socket, "conn_id", []) ->
     send_response(Socket, 200, lock_serv:get_locker_id());
 process_command(Socket, "conn_id", [Requested]) ->
